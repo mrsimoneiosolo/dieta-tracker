@@ -276,7 +276,7 @@ textarea{resize:vertical;min-height:70px}
 
 <!-- SCANNER OVERLAY -->
 <div id="scanner-wrap">
-  <video id="scan-video" autoplay playsinline muted></video>
+  <video id="scan-video" autoplay playsinline webkit-playsinline muted style="width:100%;height:100%;object-fit:cover;display:block"></video>
   <div class="scan-ui">
     <div class="scan-frame"></div>
     <div class="scan-hint">Inquadra il codice a barre</div>
@@ -485,29 +485,67 @@ function delIngr(id){
 // ══════════════════════════════════════
 // SCANNER + OPEN FOOD FACTS
 // ══════════════════════════════════════
-let zxing=null,scanOn=false;
+let scanOn=false,scanStream=null,scanRaf=null,scanCanvas=null,scanCtx=null;
 
-function avviaScanner(){
+function setStatus(msg){document.getElementById('scan-status').textContent=msg;}
+
+async function avviaScanner(){
   document.getElementById('scanner-wrap').classList.add('show');
-  document.getElementById('scan-status').textContent='Inizializzazione fotocamera...';
-  if(typeof ZXing==='undefined'){
-    document.getElementById('scan-status').textContent='Libreria non disponibile — serve connessione internet.';return;
-  }
-  zxing=new ZXing.BrowserMultiFormatReader();scanOn=true;
-  zxing.listVideoInputDevices().then(devs=>{
-    let dev=devs[0];
-    for(const d of devs){if(/back|rear|poster/i.test(d.label)){dev=d;break;}}
-    document.getElementById('scan-status').textContent='Fotocamera attiva — inquadra il codice';
-    zxing.decodeFromVideoDevice(dev?dev.deviceId:undefined,'scan-video',(res,err)=>{
-      if(!scanOn)return;
-      if(res){const bc=res.getText();fermaScanner();cercaProdotto(bc);}
+  setStatus('Inizializzazione fotocamera...');
+  scanOn=true;
+  scanCanvas=document.createElement('canvas');
+  scanCtx=scanCanvas.getContext('2d',{willReadFrequently:true});
+  try{
+    scanStream=await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}}
     });
-  }).catch(e=>{document.getElementById('scan-status').textContent='Errore: '+e.message;});
+    const video=document.getElementById('scan-video');
+    video.srcObject=scanStream;
+    await video.play();
+    setStatus('Fotocamera attiva — inquadra il codice');
+    if('BarcodeDetector' in window){
+      const det=new BarcodeDetector({formats:['ean_13','ean_8','upc_a','upc_e','code_128','code_39','itf','qr_code']});
+      loopNativo(video,det);
+    } else if(typeof ZXing!=='undefined'){
+      loopZXing(video);
+    } else {
+      setStatus('Scanner non supportato. Usa Chrome su Android.');
+    }
+  }catch(e){setStatus('Errore fotocamera: '+e.message);}
+}
+
+async function loopNativo(video,det){
+  if(!scanOn)return;
+  if(video.readyState>=2){
+    try{
+      const res=await det.detect(video);
+      if(res.length){fermaScanner();cercaProdotto(res[0].rawValue);return;}
+    }catch(e){}
+  }
+  scanRaf=requestAnimationFrame(()=>loopNativo(video,det));
+}
+
+function loopZXing(video){
+  if(!scanOn)return;
+  if(video.readyState>=2){
+    scanCanvas.width=video.videoWidth;scanCanvas.height=video.videoHeight;
+    scanCtx.drawImage(video,0,0);
+    try{
+      const imgD=scanCtx.getImageData(0,0,scanCanvas.width,scanCanvas.height);
+      const lum=new ZXing.RGBLuminanceSource(imgD.data,scanCanvas.width,scanCanvas.height);
+      const bb=new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(lum));
+      const r=new ZXing.MultiFormatReader().decode(bb);
+      if(r){fermaScanner();cercaProdotto(r.getText());return;}
+    }catch(e){}
+  }
+  scanRaf=requestAnimationFrame(()=>loopZXing(video));
 }
 
 function fermaScanner(){
   scanOn=false;
-  if(zxing){try{zxing.reset();}catch(e){}zxing=null;}
+  if(scanRaf){cancelAnimationFrame(scanRaf);scanRaf=null;}
+  if(scanStream){scanStream.getTracks().forEach(t=>t.stop());scanStream=null;}
+  const v=document.getElementById('scan-video');v.srcObject=null;
   document.getElementById('scanner-wrap').classList.remove('show');
 }
 
