@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#1a1a2e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>DieTa Tracker</title>
+<style>
+:root{--bg:#0f0f1a;--surface:#1a1a2e;--surface2:#222240;--surface3:#2a2a50;--accent:#6c63ff;--accent2:#a78bfa;--accent-dim:rgba(108,99,255,0.15);--green:#22c55e;--amber:#f59e0b;--red:#ef4444;--red-dim:rgba(239,68,68,0.15);--text:#e2e8f0;--text2:#94a3b8;--text3:#64748b;--border:rgba(255,255,255,0.08);--border2:rgba(255,255,255,0.15);--radius:14px;--radius-sm:8px}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;font-size:15px;min-height:100vh;overflow-x:hidden}
+.app-header{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 18px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.app-logo{font-size:20px;font-weight:700;letter-spacing:-0.5px}.app-logo span{color:var(--accent2)}
+.date-badge{font-size:12px;color:var(--text2);background:var(--surface2);padding:4px 10px;border-radius:20px;border:1px solid var(--border)}
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);display:flex;z-index:100;padding-bottom:env(safe-area-inset-bottom)}
+.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 0 8px;background:none;border:none;color:var(--text3);font-size:10px;font-weight:500;cursor:pointer;transition:color 0.2s}
+.nav-btn.active{color:var(--accent2)}.nav-btn svg{width:22px;height:22px}
+main{padding:16px;padding-bottom:90px;max-width:520px;margin:0 auto}
+.page{display:none}.page.active{display:block}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px}
+.card-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:14px}
+.pasto-block{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:10px;overflow:hidden}
+.pasto-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;cursor:pointer;user-select:none;gap:10px}
+.pasto-header-left{display:flex;align-items:center;gap:10px;flex:1}
+.pasto-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.pasto-nome{font-weight:600;font-size:15px}.pasto-count{font-size:12px;color:var(--text2)}
+.chevron{color:var(--text3);transition:transform 0.2s;flex-shrink:0}
+.pasto-block.open .chevron{transform:rotate(180deg)}
+.pasto-body{display:none;padding:0 14px 14px;border-top:1px solid var(--border)}
+.pasto-block.open .pasto-body{display:block}
+.variante-row{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--border)}
+.variante-row:last-child{border-bottom:none}
+.variante-info{flex:1}.variante-nome{font-size:14px;font-weight:500}.variante-ingredienti{font-size:12px;color:var(--text2);margin-top:2px}
+.variante-log-btn{padding:6px 14px;background:var(--accent-dim);color:var(--accent2);border:1px solid rgba(108,99,255,0.3);border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0}
+.variante-log-btn:active{background:rgba(108,99,255,0.3)}
+.dispensa-item{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);gap:8px}
+.dispensa-item:last-child{border-bottom:none}
+.dispensa-nome{font-size:14px;font-weight:500;flex:1}
+.dispensa-qty{font-size:13px;font-weight:600;min-width:60px;text-align:right}
+.qty-low{color:var(--amber)}.qty-out{color:var(--red)}.qty-ok{color:var(--green)}
+.dispensa-actions{display:flex;gap:6px}
+.icon-btn{width:30px;height:30px;border-radius:8px;border:1px solid var(--border);background:var(--surface3);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text2);font-size:14px}
+.form-group{margin-bottom:14px}
+.form-label{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px;display:block}
+input[type=text],input[type=number],select,textarea{width:100%;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-size:14px;padding:10px 12px;outline:none;font-family:inherit}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-dim)}
+select option{background:var(--surface2)}
+textarea{resize:vertical;min-height:70px}
+.btn-primary{width:100%;padding:13px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);font-size:15px;font-weight:600;cursor:pointer}
+.btn-primary:active{opacity:0.8}
+.btn-secondary{padding:10px 18px;background:var(--surface3);color:var(--text2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-weight:500;cursor:pointer}
+.btn-danger{padding:6px 12px;background:var(--red-dim);color:var(--red);border:1px solid rgba(239,68,68,0.3);border-radius:6px;font-size:12px;cursor:pointer}
+.btn-add{width:100%;padding:11px;background:var(--accent-dim);color:var(--accent2);border:1px dashed rgba(108,99,255,0.4);border-radius:var(--radius-sm);font-size:14px;font-weight:600;cursor:pointer;margin-top:10px}
+#toast{position:fixed;bottom:85px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--surface2);border:1px solid var(--border2);border-radius:30px;padding:10px 20px;font-size:13px;font-weight:500;color:var(--text);z-index:300;opacity:0;transition:all 0.25s;pointer-events:none;white-space:nowrap;max-width:85vw;text-align:center}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.success{border-color:rgba(34,197,94,0.5);color:var(--green)}
+#toast.warning{border-color:rgba(245,158,11,0.5);color:var(--amber)}
+#toast.error{border-color:rgba(239,68,68,0.5);color:var(--red)}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:150;align-items:flex-end;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius) var(--radius) 0 0;padding:20px 18px 30px;width:100%;max-width:520px;max-height:85vh;overflow-y:auto}
+.modal-title{font-size:16px;font-weight:700;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between}
+.modal-close{width:28px;height:28px;border-radius:50%;background:var(--surface3);border:none;color:var(--text2);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.piano-variante-item{background:var(--surface3);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:8px;display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.log-item{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
+.log-item:last-child{border-bottom:none}
+.log-dot{width:8px;height:8px;border-radius:50%;background:var(--green);margin-top:5px;flex-shrink:0}
+.log-info{flex:1}.log-main{font-size:14px;font-weight:500}.log-sub{font-size:12px;color:var(--text2);margin-top:2px}
+.log-time{font-size:11px;color:var(--text3);flex-shrink:0}
+.section-title{font-size:13px;font-weight:700;color:var(--accent2);margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
+.empty-state{text-align:center;padding:40px 20px;color:var(--text3);font-size:14px}
+.empty-icon{font-size:36px;margin-bottom:10px}
+.chip-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.chip{padding:4px 10px;background:var(--surface3);border:1px solid var(--border);border-radius:20px;font-size:12px;color:var(--text2);display:flex;align-items:center;gap:4px}
+.chip-remove{background:none;border:none;color:var(--red);cursor:pointer;font-size:13px;padding:0;line-height:1}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.stat-card{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;text-align:center}
+.stat-val{font-size:22px;font-weight:700}.stat-lbl{font-size:11px;color:var(--text3);margin-top:2px}
+.search-box{display:flex;align-items:center;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:8px 12px;gap:8px;margin-bottom:14px}
+.search-box input{background:none;border:none;flex:1;color:var(--text);font-size:14px;outline:none;padding:0}
+/* consuma rows */
+.consuma-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)}
+.consuma-row:last-child{border-bottom:none}
+.consuma-nome{flex:1;font-size:14px}
+.consuma-qty-inp{width:70px;padding:6px 8px;text-align:center;background:var(--surface3);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:14px}
+.consuma-unit{font-size:12px;color:var(--text3);min-width:28px}
+.consuma-disp{font-size:11px;min-width:58px;text-align:right}
+/* scanner */
+#scanner-wrap{position:fixed;inset:0;background:#000;z-index:200;display:none;flex-direction:column}
+#scanner-wrap.show{display:flex}
+#scan-video{width:100%;height:100%;object-fit:cover}
+.scan-ui{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none}
+.scan-frame{width:260px;height:160px;border:3px solid var(--accent2);border-radius:12px;box-shadow:0 0 0 9999px rgba(0,0,0,0.55)}
+.scan-hint{margin-top:20px;color:#fff;font-size:14px;background:rgba(0,0,0,0.6);padding:6px 16px;border-radius:20px}
+.scan-close-btn{position:absolute;top:20px;right:20px;pointer-events:all;width:42px;height:42px;border-radius:50%;background:rgba(0,0,0,0.7);border:1px solid rgba(255,255,255,0.3);color:#fff;font-size:20px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+#scan-status{position:absolute;bottom:40px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.8);color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;text-align:center;max-width:80vw;white-space:nowrap}
+.scan-btn{display:flex;align-items:center;gap:8px;padding:11px 14px;background:rgba(167,139,250,0.12);color:var(--accent2);border:1px solid rgba(167,139,250,0.35);border-radius:var(--radius-sm);font-size:14px;font-weight:600;cursor:pointer;width:100%;justify-content:center;margin-bottom:10px}
+.barcode-card{background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:12px;margin-bottom:14px}
+.barcode-pname{font-size:15px;font-weight:600;margin-bottom:4px}
+.barcode-meta{font-size:12px;color:var(--text2)}
+.match-box{background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:8px;padding:10px 12px;font-size:13px;margin-bottom:14px}
+</style>
+</head>
+<body>
+
+<div class="app-header">
+  <div class="app-logo">Die<span>Ta</span></div>
+  <div class="date-badge" id="date-badge"></div>
+</div>
+
+<main>
+  <!-- OGGI -->
+  <div class="page active" id="page-oggi"><div id="pasti-container"></div></div>
+
+  <!-- DISPENSA -->
+  <div class="page" id="page-dispensa">
+    <div class="card">
+      <div class="search-box">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input type="text" id="dispensa-search" placeholder="Cerca ingrediente...">
+      </div>
+      <div id="dispensa-list"></div>
+      <button class="scan-btn" onclick="avviaScanner()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 5h2M3 9h2M3 13h2M3 17h2M3 21h2M19 5h2M19 9h2M19 13h2M19 17h2M19 21h2M7 3v2M11 3v2M15 3v2M7 19v2M11 19v2M15 19v2M5 7h14v10H5z"/></svg>
+        Scansiona codice a barre
+      </button>
+      <button class="btn-add" onclick="openModal('modal-add-ingr')">+ Aggiungi manualmente</button>
+    </div>
+  </div>
+
+  <!-- PIANO -->
+  <div class="page" id="page-piano">
+    <div class="card">
+      <div id="piano-list"></div>
+      <button class="btn-add" onclick="openModal('modal-add-variante')">+ Aggiungi variante pasto</button>
+    </div>
+  </div>
+
+  <!-- LOG -->
+  <div class="page" id="page-log">
+    <div class="stat-grid">
+      <div class="stat-card"><div class="stat-val" id="stat-oggi">0</div><div class="stat-lbl">Pasti oggi</div></div>
+      <div class="stat-card"><div class="stat-val" id="stat-sett">0</div><div class="stat-lbl">Pasti settimana</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Cronologia</div>
+      <div id="log-list"></div>
+    </div>
+  </div>
+</main>
+
+<nav class="bottom-nav">
+  <button class="nav-btn active" onclick="showPage('oggi',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/></svg>Oggi
+  </button>
+  <button class="nav-btn" onclick="showPage('dispensa',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>Dispensa
+  </button>
+  <button class="nav-btn" onclick="showPage('piano',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Piano
+  </button>
+  <button class="nav-btn" onclick="showPage('log',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Log
+  </button>
+</nav>
+
+<!-- MODAL: CONSUMA con qty editabili -->
+<div class="modal-overlay" id="modal-consuma">
+  <div class="modal">
+    <div class="modal-title">
+      <span id="mc-title">Conferma consumo</span>
+      <button class="modal-close" onclick="closeModal('modal-consuma')">✕</button>
+    </div>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:12px">Modifica le quantità se vuoi, poi conferma:</p>
+    <div id="mc-rows"></div>
+    <button class="btn-primary" style="margin-top:16px" onclick="confermaConsumo()">Conferma e sottrai dalla dispensa</button>
+  </div>
+</div>
+
+<!-- MODAL: AGGIUNGI INGREDIENTE manuale -->
+<div class="modal-overlay" id="modal-add-ingr">
+  <div class="modal">
+    <div class="modal-title">
+      <span>Aggiungi alla dispensa</span>
+      <button class="modal-close" onclick="closeModal('modal-add-ingr')">✕</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Nome ingrediente</label>
+      <input type="text" id="ai-nome" placeholder="es. Petto di pollo">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="form-group">
+        <label class="form-label">Quantità</label>
+        <input type="number" id="ai-qty" min="0" step="0.1" placeholder="500">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Unità</label>
+        <select id="ai-unit"><option>g</option><option>ml</option><option>pz</option><option>kg</option><option>l</option><option>cucchiai</option><option>cucchiaini</option></select>
+      </div>
+    </div>
+    <button class="btn-primary" onclick="aggiungiIngrManuale()">Aggiungi</button>
+  </div>
+</div>
+
+<!-- MODAL: RISULTATO BARCODE -->
+<div class="modal-overlay" id="modal-barcode">
+  <div class="modal">
+    <div class="modal-title">
+      <span>Prodotto scansionato</span>
+      <button class="modal-close" onclick="closeModal('modal-barcode')">✕</button>
+    </div>
+    <div id="bc-card"></div>
+    <div class="form-group">
+      <label class="form-label">Nome da usare in dispensa</label>
+      <input type="text" id="bc-nome" placeholder="Avena, Latte, ...">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="form-group">
+        <label class="form-label">Quantità acquistata</label>
+        <input type="number" id="bc-qty" min="0" step="0.1">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Unità</label>
+        <select id="bc-unit"><option>g</option><option>ml</option><option>pz</option><option>kg</option><option>l</option><option>cucchiai</option><option>cucchiaini</option></select>
+      </div>
+    </div>
+    <div id="bc-match"></div>
+    <button class="btn-primary" onclick="confermaBarcodeAdd()">Aggiungi alla dispensa</button>
+    <button class="btn-secondary" style="width:100%;margin-top:8px" onclick="closeModal('modal-barcode');avviaScanner()">Scansiona un altro</button>
+  </div>
+</div>
+
+<!-- MODAL: MODIFICA QTY -->
+<div class="modal-overlay" id="modal-edit-qty">
+  <div class="modal">
+    <div class="modal-title">
+      <span id="eq-nome">Modifica quantità</span>
+      <button class="modal-close" onclick="closeModal('modal-edit-qty')">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+      <div class="form-group"><label class="form-label">Quantità attuale</label><input type="number" id="eq-qty" min="0" step="0.1"></div>
+      <div class="form-group"><label class="form-label">Aggiungi</label><input type="number" id="eq-add" min="0" step="0.1" placeholder="0"></div>
+    </div>
+    <button class="btn-primary" onclick="salvaQty()">Salva</button>
+  </div>
+</div>
+
+<!-- MODAL: AGGIUNGI VARIANTE -->
+<div class="modal-overlay" id="modal-add-variante">
+  <div class="modal">
+    <div class="modal-title">
+      <span>Nuova variante</span>
+      <button class="modal-close" onclick="closeModal('modal-add-variante')">✕</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Pasto</label>
+      <select id="av-pasto"><option value="colazione">Colazione</option><option value="pranzo">Pranzo</option><option value="merenda">Merenda</option><option value="cena">Cena</option><option value="spuntino">Spuntino</option></select>
+    </div>
+    <div class="form-group"><label class="form-label">Nome variante</label><input type="text" id="av-nome" placeholder="es. Pasta al tonno"></div>
+    <div class="form-group">
+      <label class="form-label">Ingredienti</label>
+      <div style="display:flex;gap:6px;align-items:center">
+        <input type="text" id="av-in" placeholder="Nome" style="flex:1.5">
+        <input type="number" id="av-iq" placeholder="Qty" min="0" step="0.1" style="flex:0.8">
+        <select id="av-iu" style="flex:0.8"><option>g</option><option>ml</option><option>pz</option><option>kg</option><option>l</option><option>cucchiai</option><option>cucchiaini</option></select>
+        <button onclick="addIngrChip()" style="padding:9px 12px;background:var(--accent-dim);color:var(--accent2);border:1px solid rgba(108,99,255,0.3);border-radius:8px;font-weight:700;cursor:pointer;font-size:15px;flex-shrink:0">+</button>
+      </div>
+      <div class="chip-list" id="av-chips"></div>
+    </div>
+    <div class="form-group"><label class="form-label">Note (opzionale)</label><textarea id="av-note" placeholder="Descrizione..."></textarea></div>
+    <button class="btn-primary" onclick="salvaVariante()">Salva variante</button>
+  </div>
+</div>
+
+<!-- SCANNER OVERLAY -->
+<div id="scanner-wrap">
+  <video id="scan-video" autoplay playsinline muted></video>
+  <div class="scan-ui">
+    <div class="scan-frame"></div>
+    <div class="scan-hint">Inquadra il codice a barre</div>
+  </div>
+  <button class="scan-close-btn" onclick="fermaScanner()">✕</button>
+  <div id="scan-status">Inizializzazione...</div>
+</div>
+
+<div id="toast"></div>
+
+<script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
+<script>
+// ══════════════════════════════════════
+// DATA
+// ══════════════════════════════════════
+const SK='dieta_v3';
+let S={dispensa:[],piano:[],log:[]};
+
+function load(){
+  try{const s=localStorage.getItem(SK);if(s)S=JSON.parse(s);}catch(e){}
+  if(!S.dispensa.length&&!S.piano.length)demo();
+}
+function save(){localStorage.setItem(SK,JSON.stringify(S));}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).substr(2,5);}
+
+function demo(){
+  S.dispensa=[
+    {id:uid(),nome:'Avena',qty:500,unit:'g'},
+    {id:uid(),nome:'Latte parzialmente scremato',qty:800,unit:'ml'},
+    {id:uid(),nome:'Uova',qty:6,unit:'pz'},
+    {id:uid(),nome:'Petto di pollo',qty:600,unit:'g'},
+    {id:uid(),nome:'Riso integrale',qty:400,unit:'g'},
+    {id:uid(),nome:'Pasta integrale',qty:300,unit:'g'},
+    {id:uid(),nome:'Tonno al naturale',qty:3,unit:'pz'},
+    {id:uid(),nome:'Olio EVO',qty:200,unit:'ml'},
+    {id:uid(),nome:'Mozzarella light',qty:125,unit:'g'},
+    {id:uid(),nome:'Spinaci',qty:300,unit:'g'},
+    {id:uid(),nome:'Banana',qty:2,unit:'pz'},
+    {id:uid(),nome:'Yogurt greco',qty:250,unit:'g'},
+    {id:uid(),nome:'Pane integrale',qty:400,unit:'g'},
+  ];
+  S.piano=[
+    {id:uid(),pasto:'colazione',nome:'Avena latte e banana',ingredienti:[{nome:'Avena',qty:80,unit:'g'},{nome:'Latte parzialmente scremato',qty:200,unit:'ml'},{nome:'Banana',qty:1,unit:'pz'}],note:''},
+    {id:uid(),pasto:'colazione',nome:'Uova strapazzate e pane',ingredienti:[{nome:'Uova',qty:3,unit:'pz'},{nome:'Pane integrale',qty:80,unit:'g'},{nome:'Olio EVO',qty:5,unit:'ml'}],note:''},
+    {id:uid(),pasto:'pranzo',nome:'Pasta tonno e spinaci',ingredienti:[{nome:'Pasta integrale',qty:100,unit:'g'},{nome:'Tonno al naturale',qty:1,unit:'pz'},{nome:'Spinaci',qty:80,unit:'g'},{nome:'Olio EVO',qty:10,unit:'ml'}],note:''},
+    {id:uid(),pasto:'pranzo',nome:'Riso pollo e verdure',ingredienti:[{nome:'Riso integrale',qty:90,unit:'g'},{nome:'Petto di pollo',qty:150,unit:'g'},{nome:'Olio EVO',qty:8,unit:'ml'}],note:''},
+    {id:uid(),pasto:'merenda',nome:'Yogurt greco',ingredienti:[{nome:'Yogurt greco',qty:150,unit:'g'}],note:''},
+    {id:uid(),pasto:'cena',nome:'Pollo spinaci e mozzarella',ingredienti:[{nome:'Petto di pollo',qty:200,unit:'g'},{nome:'Spinaci',qty:150,unit:'g'},{nome:'Mozzarella light',qty:125,unit:'g'},{nome:'Olio EVO',qty:10,unit:'ml'}],note:''},
+    {id:uid(),pasto:'cena',nome:'Uova e pane integrale',ingredienti:[{nome:'Uova',qty:3,unit:'pz'},{nome:'Pane integrale',qty:80,unit:'g'},{nome:'Olio EVO',qty:5,unit:'ml'}],note:''},
+  ];
+  save();
+}
+
+// ══════════════════════════════════════
+// UI
+// ══════════════════════════════════════
+function showPage(n,btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+n).classList.add('active');
+  btn.classList.add('active');
+  if(n==='oggi')renderOggi();
+  else if(n==='dispensa')renderDispensa();
+  else if(n==='piano')renderPiano();
+  else if(n==='log')renderLog();
+}
+function openModal(id){document.getElementById(id).classList.add('show');}
+function closeModal(id){document.getElementById(id).classList.remove('show');}
+let TT;
+function toast(msg,type='success'){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.className='show '+type;
+  clearTimeout(TT);TT=setTimeout(()=>{t.className='';},2800);
+}
+document.getElementById('date-badge').textContent=new Date().toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'short'});
+
+// ══════════════════════════════════════
+// OGGI
+// ══════════════════════════════════════
+const PC=[
+  {key:'colazione',label:'Colazione',icon:'☀️',color:'#f59e0b'},
+  {key:'pranzo',label:'Pranzo',icon:'🥗',color:'#22c55e'},
+  {key:'merenda',label:'Merenda',icon:'🍎',color:'#a78bfa'},
+  {key:'cena',label:'Cena',icon:'🌙',color:'#6c63ff'},
+  {key:'spuntino',label:'Spuntino',icon:'🥜',color:'#64748b'},
+];
+
+function renderOggi(){
+  const c=document.getElementById('pasti-container');c.innerHTML='';
+  PC.forEach(pc=>{
+    const vv=S.piano.filter(p=>p.pasto===pc.key);
+    if(!vv.length)return;
+    const b=document.createElement('div');b.className='pasto-block';
+    b.innerHTML=`<div class="pasto-header" onclick="this.parentElement.classList.toggle('open')">
+      <div class="pasto-header-left">
+        <div class="pasto-icon" style="background:${pc.color}22">${pc.icon}</div>
+        <div><div class="pasto-nome">${pc.label}</div><div class="pasto-count">${vv.length} variant${vv.length===1?'e':'i'}</div></div>
+      </div>
+      <svg class="chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div class="pasto-body">${vv.map(v=>{
+      const il=v.ingredienti.map(i=>`${i.nome} ${i.qty}${i.unit}`).join(', ');
+      return `<div class="variante-row"><div class="variante-info"><div class="variante-nome">${v.nome}</div><div class="variante-ingredienti">${il||'Nessun ingrediente'}</div></div><button class="variante-log-btn" onclick="iniziaConsumo('${v.id}')">Consuma</button></div>`;
+    }).join('')}</div>`;
+    c.appendChild(b);
+  });
+  if(!c.children.length)c.innerHTML=`<div class="empty-state"><div class="empty-icon">📋</div>Nessun piano alimentare.<br>Vai su "Piano" per aggiungere i tuoi pasti.</div>`;
+}
+
+// ══════════════════════════════════════
+// CONSUMO — qty editabili
+// ══════════════════════════════════════
+let pendingId=null;
+
+function iniziaConsumo(vid){
+  const v=S.piano.find(p=>p.id===vid);if(!v)return;
+  pendingId=vid;
+  document.getElementById('mc-title').textContent=v.nome;
+  const rows=document.getElementById('mc-rows');
+  if(!v.ingredienti.length){
+    rows.innerHTML='<p style="color:var(--text3);font-size:13px;padding:8px 0">Nessun ingrediente — verrà solo registrato nel log.</p>';
+  } else {
+    rows.innerHTML=v.ingredienti.map((i,idx)=>{
+      const d=S.dispensa.find(x=>x.nome.toLowerCase()===i.nome.toLowerCase());
+      const disp=d?d.qty:null;
+      const warn=disp!==null&&disp<i.qty;
+      const dispTxt=disp!==null
+        ?`<span style="color:${warn?'var(--amber)':'var(--text3)'}">disp: ${disp}${i.unit}</span>`
+        :`<span style="color:var(--red)">non trovato</span>`;
+      return `<div class="consuma-row">
+        <div class="consuma-nome">${i.nome}</div>
+        <input class="consuma-qty-inp" type="number" min="0" step="0.1" value="${i.qty}" id="cq${idx}">
+        <div class="consuma-unit">${i.unit}</div>
+        <div class="consuma-disp">${dispTxt}</div>
+      </div>`;
+    }).join('');
+  }
+  openModal('modal-consuma');
+}
+
+function confermaConsumo(){
+  const v=S.piano.find(p=>p.id===pendingId);if(!v)return;
+  const warn=[];
+  const used=v.ingredienti.map((i,idx)=>{
+    const el=document.getElementById('cq'+idx);
+    const q=el?parseFloat(el.value)||0:i.qty;
+    const d=S.dispensa.find(x=>x.nome.toLowerCase()===i.nome.toLowerCase());
+    if(d)d.qty=Math.max(0,parseFloat((d.qty-q).toFixed(2)));
+    else warn.push(i.nome);
+    return{nome:i.nome,qty:q,unit:i.unit};
+  });
+  S.log.unshift({id:uid(),ts:new Date().toISOString(),pasto:v.pasto,variante:v.nome,ingredienti:used});
+  save();closeModal('modal-consuma');
+  warn.length?toast('Non in dispensa: '+warn.join(', '),'warning'):toast(v.nome+' registrato!','success');
+  renderOggi();
+}
+
+// ══════════════════════════════════════
+// DISPENSA
+// ══════════════════════════════════════
+function renderDispensa(){
+  const q=document.getElementById('dispensa-search').value.toLowerCase();
+  const l=document.getElementById('dispensa-list');
+  const items=S.dispensa.filter(i=>i.nome.toLowerCase().includes(q));
+  if(!items.length){l.innerHTML=`<div class="empty-state"><div class="empty-icon">📦</div>${q?'Nessun risultato.':'Dispensa vuota.'}</div>`;return;}
+  l.innerHTML=items.map(i=>{
+    let cls='qty-ok';
+    if(i.qty===0)cls='qty-out';
+    else if(i.qty<50&&(i.unit==='g'||i.unit==='ml'))cls='qty-low';
+    else if(i.qty<2&&i.unit==='pz')cls='qty-low';
+    return `<div class="dispensa-item"><div class="dispensa-nome">${i.nome}</div><div class="dispensa-qty ${cls}">${i.qty} ${i.unit}</div><div class="dispensa-actions"><button class="icon-btn" onclick="editQty('${i.id}')">✎</button><button class="icon-btn" style="color:var(--red)" onclick="delIngr('${i.id}')">✕</button></div></div>`;
+  }).join('');
+}
+document.getElementById('dispensa-search').addEventListener('input',renderDispensa);
+
+function aggiungiIngrManuale(){
+  const nome=document.getElementById('ai-nome').value.trim();
+  const qty=parseFloat(document.getElementById('ai-qty').value);
+  const unit=document.getElementById('ai-unit').value;
+  if(!nome||isNaN(qty)||qty<0){toast('Compila tutti i campi','error');return;}
+  const ex=S.dispensa.find(x=>x.nome.toLowerCase()===nome.toLowerCase());
+  if(ex){ex.qty=parseFloat((ex.qty+qty).toFixed(2));toast(nome+' aggiornato (+'+qty+unit+')','success');}
+  else{S.dispensa.push({id:uid(),nome,qty,unit});toast(nome+' aggiunto','success');}
+  save();closeModal('modal-add-ingr');
+  document.getElementById('ai-nome').value='';document.getElementById('ai-qty').value='';
+  renderDispensa();
+}
+
+let eqId=null;
+function editQty(id){
+  const item=S.dispensa.find(x=>x.id===id);if(!item)return;
+  eqId=id;document.getElementById('eq-nome').textContent=item.nome;
+  document.getElementById('eq-qty').value=item.qty;document.getElementById('eq-add').value='';
+  openModal('modal-edit-qty');
+}
+function salvaQty(){
+  const item=S.dispensa.find(x=>x.id===eqId);if(!item)return;
+  item.qty=parseFloat(((parseFloat(document.getElementById('eq-qty').value)||0)+(parseFloat(document.getElementById('eq-add').value)||0)).toFixed(2));
+  save();closeModal('modal-edit-qty');toast('Quantità aggiornata','success');renderDispensa();
+}
+function delIngr(id){
+  if(!confirm('Eliminare questo ingrediente?'))return;
+  S.dispensa=S.dispensa.filter(x=>x.id!==id);save();renderDispensa();toast('Eliminato','warning');
+}
+
+// ══════════════════════════════════════
+// SCANNER + OPEN FOOD FACTS
+// ══════════════════════════════════════
+let zxing=null,scanOn=false;
+
+function avviaScanner(){
+  document.getElementById('scanner-wrap').classList.add('show');
+  document.getElementById('scan-status').textContent='Inizializzazione fotocamera...';
+  if(typeof ZXing==='undefined'){
+    document.getElementById('scan-status').textContent='Libreria non disponibile — serve connessione internet.';return;
+  }
+  zxing=new ZXing.BrowserMultiFormatReader();scanOn=true;
+  zxing.listVideoInputDevices().then(devs=>{
+    let dev=devs[0];
+    for(const d of devs){if(/back|rear|poster/i.test(d.label)){dev=d;break;}}
+    document.getElementById('scan-status').textContent='Fotocamera attiva — inquadra il codice';
+    zxing.decodeFromVideoDevice(dev?dev.deviceId:undefined,'scan-video',(res,err)=>{
+      if(!scanOn)return;
+      if(res){const bc=res.getText();fermaScanner();cercaProdotto(bc);}
+    });
+  }).catch(e=>{document.getElementById('scan-status').textContent='Errore: '+e.message;});
+}
+
+function fermaScanner(){
+  scanOn=false;
+  if(zxing){try{zxing.reset();}catch(e){}zxing=null;}
+  document.getElementById('scanner-wrap').classList.remove('show');
+}
+
+async function cercaProdotto(bc){
+  toast('Ricerca prodotto...','warning');
+  try{
+    const r=await fetch('https://world.openfoodfacts.org/api/v0/product/'+bc+'.json');
+    const d=await r.json();
+    if(d.status===1)mostraBarcode(d.product);
+    else{toast('Prodotto non trovato — inserisci manualmente','warning');openModal('modal-add-ingr');}
+  }catch(e){toast('Errore di rete — inserisci manualmente','error');openModal('modal-add-ingr');}
+}
+
+function mostraBarcode(p){
+  const name=p.product_name_it||p.product_name||p.generic_name_it||p.generic_name||'Prodotto sconosciuto';
+  const rawQty=p.quantity||'';
+  const qm=rawQty.match(/([\d.,]+)\s*(g|ml|kg|l|cl)/i);
+  let sq=qm?parseFloat(qm[1].replace(',','.')):null;
+  let su=qm?qm[2].toLowerCase():'g';
+  if(su==='cl'&&sq){sq*=10;su='ml';}
+  if(su==='kg'&&sq){sq*=1000;su='g';}
+  if(su==='l'&&sq){sq*=1000;su='ml';}
+
+  // scheda prodotto
+  let kcal='';
+  if(p.nutriments&&p.nutriments['energy-kcal_100g']){
+    kcal=`<div style="font-size:11px;color:var(--text3);margin-top:4px">Kcal: ${Math.round(p.nutriments['energy-kcal_100g'])}/100g · Proteine: ${parseFloat(p.nutriments.proteins_100g||0).toFixed(1)}g · Carbo: ${parseFloat(p.nutriments.carbohydrates_100g||0).toFixed(1)}g</div>`;
+  }
+  document.getElementById('bc-card').innerHTML=`<div class="barcode-card"><div class="barcode-pname">${name}</div><div class="barcode-meta">${[p.brands,rawQty].filter(Boolean).join(' · ')}</div>${kcal}</div>`;
+
+  document.getElementById('bc-nome').value=name;
+  if(sq)document.getElementById('bc-qty').value=sq;
+  const uSel=document.getElementById('bc-unit');
+  for(let i=0;i<uSel.options.length;i++){if(uSel.options[i].value===su){uSel.selectedIndex=i;break;}}
+
+  // suggerimento corrispondenza dispensa
+  const words=name.toLowerCase().split(/\s+/).filter(w=>w.length>3);
+  let match=null;
+  for(const w of words){match=S.dispensa.find(d=>d.nome.toLowerCase().includes(w));if(match)break;}
+  const mb=document.getElementById('bc-match');
+  if(match){
+    mb.innerHTML=`<div class="match-box"><span style="color:var(--amber);font-weight:600">Già in dispensa:</span> "${match.nome}" (${match.qty} ${match.unit})<br><span style="color:var(--text2)">Se è lo stesso prodotto, usa il nome uguale per sommare le quantità.</span><br><button onclick="document.getElementById('bc-nome').value='${match.nome.replace(/'/g,"\\'")}'" style="margin-top:6px;padding:4px 12px;background:rgba(245,158,11,0.15);color:var(--amber);border:1px solid rgba(245,158,11,0.3);border-radius:6px;font-size:12px;cursor:pointer">Usa "${match.nome}"</button></div>`;
+  }else{mb.innerHTML='';}
+
+  openModal('modal-barcode');
+}
+
+function confermaBarcodeAdd(){
+  const nome=document.getElementById('bc-nome').value.trim();
+  const qty=parseFloat(document.getElementById('bc-qty').value);
+  const unit=document.getElementById('bc-unit').value;
+  if(!nome||isNaN(qty)||qty<0){toast('Compila nome e quantità','error');return;}
+  const ex=S.dispensa.find(x=>x.nome.toLowerCase()===nome.toLowerCase());
+  if(ex){ex.qty=parseFloat((ex.qty+qty).toFixed(2));toast(nome+' aggiornato (+'+qty+unit+')','success');}
+  else{S.dispensa.push({id:uid(),nome,qty,unit});toast(nome+' aggiunto','success');}
+  save();closeModal('modal-barcode');renderDispensa();
+}
+
+// ══════════════════════════════════════
+// PIANO
+// ══════════════════════════════════════
+function renderPiano(){
+  const c=document.getElementById('piano-list');c.innerHTML='';
+  PC.forEach(pc=>{
+    const vv=S.piano.filter(p=>p.pasto===pc.key);if(!vv.length)return;
+    const sec=document.createElement('div');
+    sec.innerHTML=`<div class="section-title">${pc.icon} ${pc.label}<span style="font-size:11px;color:var(--text3)">${vv.length} varianti</span></div>`;
+    vv.forEach(v=>{
+      const is=v.ingredienti.map(i=>`${i.nome} ${i.qty}${i.unit}`).join(' · ')||'Nessun ingrediente';
+      const el=document.createElement('div');el.className='piano-variante-item';
+      el.innerHTML=`<div style="flex:1"><div style="font-size:14px;font-weight:600;margin-bottom:3px">${v.nome}</div><div style="font-size:12px;color:var(--text2)">${is}</div>${v.note?`<div style="font-size:11px;color:var(--text3);margin-top:3px">${v.note}</div>`:''}</div><button class="btn-danger" onclick="delVariante('${v.id}')">✕</button>`;
+      sec.appendChild(el);
+    });
+    c.appendChild(sec);
+  });
+  if(!c.children.length)c.innerHTML=`<div class="empty-state"><div class="empty-icon">📝</div>Nessun piano.<br>Aggiungi le tue varianti!</div>`;
+}
+
+let tmpI=[];
+function addIngrChip(){
+  const n=document.getElementById('av-in').value.trim();
+  const q=parseFloat(document.getElementById('av-iq').value);
+  const u=document.getElementById('av-iu').value;
+  if(!n||isNaN(q)){toast('Inserisci nome e quantità','error');return;}
+  tmpI.push({nome:n,qty:q,unit:u});
+  document.getElementById('av-in').value='';document.getElementById('av-iq').value='';
+  renderChips();
+}
+function renderChips(){
+  document.getElementById('av-chips').innerHTML=tmpI.map((i,x)=>
+    `<div class="chip">${i.nome} ${i.qty}${i.unit} <button class="chip-remove" onclick="tmpI.splice(${x},1);renderChips()">✕</button></div>`
+  ).join('');
+}
+function salvaVariante(){
+  const nome=document.getElementById('av-nome').value.trim();
+  if(!nome){toast('Inserisci un nome','error');return;}
+  S.piano.push({id:uid(),pasto:document.getElementById('av-pasto').value,nome,ingredienti:[...tmpI],note:document.getElementById('av-note').value.trim()});
+  save();tmpI=[];renderChips();
+  document.getElementById('av-nome').value='';document.getElementById('av-note').value='';
+  closeModal('modal-add-variante');toast(nome+' salvata!','success');renderPiano();
+}
+function delVariante(id){
+  if(!confirm('Eliminare questa variante?'))return;
+  S.piano=S.piano.filter(x=>x.id!==id);save();renderPiano();toast('Variante eliminata','warning');
+}
+
+// ══════════════════════════════════════
+// LOG
+// ══════════════════════════════════════
+function renderLog(){
+  const tod=new Date().toDateString();const wa=new Date(Date.now()-7*24*3600*1000);
+  document.getElementById('stat-oggi').textContent=S.log.filter(l=>new Date(l.ts).toDateString()===tod).length;
+  document.getElementById('stat-sett').textContent=S.log.filter(l=>new Date(l.ts)>=wa).length;
+  const ll=document.getElementById('log-list');
+  if(!S.log.length){ll.innerHTML=`<div class="empty-state"><div class="empty-icon">📊</div>Nessun pasto registrato ancora.</div>`;return;}
+  ll.innerHTML=S.log.slice(0,60).map(l=>{
+    const d=new Date(l.ts);const it=d.toDateString()===tod;
+    const ts=it?d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}):d.toLocaleDateString('it-IT',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+    const pc=PC.find(p=>p.key===l.pasto)||{icon:'🍽️'};
+    return `<div class="log-item"><div class="log-dot"></div><div class="log-info"><div class="log-main">${pc.icon} ${l.variante}</div><div class="log-sub">${l.ingredienti.map(i=>i.nome+' '+i.qty+i.unit).join(', ')}</div></div><div class="log-time">${ts}</div></div>`;
+  }).join('');
+}
+
+// overlay click chiude modal
+document.querySelectorAll('.modal-overlay').forEach(o=>o.addEventListener('click',function(e){if(e.target===this)this.classList.remove('show');}));
+
+// ══════════════════════════════════════
+// INIT
+// ══════════════════════════════════════
+load();renderOggi();
+</script>
+</body>
+</html>
