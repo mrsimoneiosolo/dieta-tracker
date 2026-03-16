@@ -297,38 +297,11 @@ let S={dispensa:[],piano:[],log:[]};
 
 function load(){
   try{const s=localStorage.getItem(SK);if(s)S=JSON.parse(s);}catch(e){}
-  if(!S.dispensa.length&&!S.piano.length)demo();
 }
 function save(){localStorage.setItem(SK,JSON.stringify(S));}
 function uid(){return Date.now().toString(36)+Math.random().toString(36).substr(2,5);}
 
-function demo(){
-  S.dispensa=[
-    {id:uid(),nome:'Avena',qty:500,unit:'g'},
-    {id:uid(),nome:'Latte parzialmente scremato',qty:800,unit:'ml'},
-    {id:uid(),nome:'Uova',qty:6,unit:'pz'},
-    {id:uid(),nome:'Petto di pollo',qty:600,unit:'g'},
-    {id:uid(),nome:'Riso integrale',qty:400,unit:'g'},
-    {id:uid(),nome:'Pasta integrale',qty:300,unit:'g'},
-    {id:uid(),nome:'Tonno al naturale',qty:3,unit:'pz'},
-    {id:uid(),nome:'Olio EVO',qty:200,unit:'ml'},
-    {id:uid(),nome:'Mozzarella light',qty:125,unit:'g'},
-    {id:uid(),nome:'Spinaci',qty:300,unit:'g'},
-    {id:uid(),nome:'Banana',qty:2,unit:'pz'},
-    {id:uid(),nome:'Yogurt greco',qty:250,unit:'g'},
-    {id:uid(),nome:'Pane integrale',qty:400,unit:'g'},
-  ];
-  S.piano=[
-    {id:uid(),pasto:'colazione',nome:'Avena latte e banana',ingredienti:[{nome:'Avena',qty:80,unit:'g'},{nome:'Latte parzialmente scremato',qty:200,unit:'ml'},{nome:'Banana',qty:1,unit:'pz'}],note:''},
-    {id:uid(),pasto:'colazione',nome:'Uova strapazzate e pane',ingredienti:[{nome:'Uova',qty:3,unit:'pz'},{nome:'Pane integrale',qty:80,unit:'g'},{nome:'Olio EVO',qty:5,unit:'ml'}],note:''},
-    {id:uid(),pasto:'pranzo',nome:'Pasta tonno e spinaci',ingredienti:[{nome:'Pasta integrale',qty:100,unit:'g'},{nome:'Tonno al naturale',qty:1,unit:'pz'},{nome:'Spinaci',qty:80,unit:'g'},{nome:'Olio EVO',qty:10,unit:'ml'}],note:''},
-    {id:uid(),pasto:'pranzo',nome:'Riso pollo e verdure',ingredienti:[{nome:'Riso integrale',qty:90,unit:'g'},{nome:'Petto di pollo',qty:150,unit:'g'},{nome:'Olio EVO',qty:8,unit:'ml'}],note:''},
-    {id:uid(),pasto:'merenda',nome:'Yogurt greco',ingredienti:[{nome:'Yogurt greco',qty:150,unit:'g'}],note:''},
-    {id:uid(),pasto:'cena',nome:'Pollo spinaci e mozzarella',ingredienti:[{nome:'Petto di pollo',qty:200,unit:'g'},{nome:'Spinaci',qty:150,unit:'g'},{nome:'Mozzarella light',qty:125,unit:'g'},{nome:'Olio EVO',qty:10,unit:'ml'}],note:''},
-    {id:uid(),pasto:'cena',nome:'Uova e pane integrale',ingredienti:[{nome:'Uova',qty:3,unit:'pz'},{nome:'Pane integrale',qty:80,unit:'g'},{nome:'Olio EVO',qty:5,unit:'ml'}],note:''},
-  ];
-  save();
-}
+
 
 // ══════════════════════════════════════
 // UI
