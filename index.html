@@ -485,68 +485,109 @@ function delIngr(id){
 // ══════════════════════════════════════
 // SCANNER + OPEN FOOD FACTS
 // ══════════════════════════════════════
-let scanOn=false,scanStream=null,scanRaf=null,scanCanvas=null,scanCtx=null;
+let scanOn=false,scanStream=null,scanTimer=null,scanCanvas=null,scanCtx=null;
 
 function setStatus(msg){document.getElementById('scan-status').textContent=msg;}
+function setDiag(msg){
+  let d=document.getElementById('scan-diag');
+  if(!d){d=document.createElement('div');d.id='scan-diag';d.style.cssText='position:absolute;top:12px;left:12px;right:60px;background:rgba(0,0,0,0.75);color:#a78bfa;font-size:11px;padding:6px 10px;border-radius:8px;line-height:1.4;pointer-events:none';document.getElementById('scanner-wrap').appendChild(d);}
+  d.textContent=msg;
+}
 
 async function avviaScanner(){
   document.getElementById('scanner-wrap').classList.add('show');
-  setStatus('Inizializzazione fotocamera...');
+  setStatus('Richiedo accesso fotocamera...');
   scanOn=true;
   scanCanvas=document.createElement('canvas');
   scanCtx=scanCanvas.getContext('2d',{willReadFrequently:true});
-  try{
-    scanStream=await navigator.mediaDevices.getUserMedia({
-      video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}}
-    });
-    const video=document.getElementById('scan-video');
-    video.srcObject=scanStream;
-    await video.play();
-    setStatus('Fotocamera attiva — inquadra il codice');
-    if('BarcodeDetector' in window){
-      const det=new BarcodeDetector({formats:['ean_13','ean_8','upc_a','upc_e','code_128','code_39','itf','qr_code']});
-      loopNativo(video,det);
-    } else if(typeof ZXing!=='undefined'){
-      loopZXing(video);
-    } else {
-      setStatus('Scanner non supportato. Usa Chrome su Android.');
-    }
-  }catch(e){setStatus('Errore fotocamera: '+e.message);}
+
+  // Prova prima con risoluzione alta, fallback a default
+  let stream=null;
+  const attempts=[
+    {video:{facingMode:{exact:'environment'},width:{exact:1920},height:{exact:1080}}},
+    {video:{facingMode:{exact:'environment'},width:{min:1280},height:{min:720}}},
+    {video:{facingMode:{ideal:'environment'}}},
+    {video:true}
+  ];
+  for(const c of attempts){
+    try{stream=await navigator.mediaDevices.getUserMedia(c);break;}catch(e){}
+  }
+  if(!stream){setStatus('Impossibile accedere alla fotocamera.');return;}
+  scanStream=stream;
+
+  const video=document.getElementById('scan-video');
+  video.srcObject=stream;
+  await new Promise(r=>{video.onloadedmetadata=r;});
+  video.play();
+
+  const track=stream.getVideoTracks()[0];
+  const settings=track.getSettings();
+  setDiag(`Risoluzione: ${settings.width||'?'}×${settings.height||'?'} | BarcodeDetector: ${'BarcodeDetector' in window?'SI':'NO'} | ZXing: ${typeof ZXing!=='undefined'?'SI':'NO'}`);
+  setStatus('Fotocamera attiva — inquadra il codice a barre');
+
+  if('BarcodeDetector' in window){
+    const det=new BarcodeDetector({formats:['ean_13','ean_8','upc_a','upc_e','code_128','code_39','itf','qr_code']});
+    setDiag(document.getElementById('scan-diag').textContent+' | Motore: NATIVO');
+    loopNativo(video,det);
+  } else if(typeof ZXing!=='undefined'){
+    setDiag(document.getElementById('scan-diag').textContent+' | Motore: ZXing');
+    loopZXing(video);
+  } else {
+    setStatus('Nessun motore di scansione disponibile. Connettiti a internet.');
+  }
 }
 
 async function loopNativo(video,det){
   if(!scanOn)return;
-  if(video.readyState>=2){
-    try{
-      const res=await det.detect(video);
-      if(res.length){fermaScanner();cercaProdotto(res[0].rawValue);return;}
-    }catch(e){}
+  if(video.readyState<2){scanTimer=setTimeout(()=>loopNativo(video,det),100);return;}
+  try{
+    // BarcodeDetector su Chrome Android richiede ImageBitmap, non il video element diretto
+    const bmp=await createImageBitmap(video);
+    const res=await det.detect(bmp);
+    bmp.close();
+    if(res.length){
+      flashGreen();
+      setTimeout(()=>{fermaScanner();cercaProdotto(res[0].rawValue);},200);
+      return;
+    }
+  }catch(e){
+    // fallback silenzioso
   }
-  scanRaf=requestAnimationFrame(()=>loopNativo(video,det));
+  scanTimer=setTimeout(()=>loopNativo(video,det),150);
 }
 
 function loopZXing(video){
   if(!scanOn)return;
-  if(video.readyState>=2){
-    scanCanvas.width=video.videoWidth;scanCanvas.height=video.videoHeight;
-    scanCtx.drawImage(video,0,0);
-    try{
-      const imgD=scanCtx.getImageData(0,0,scanCanvas.width,scanCanvas.height);
-      const lum=new ZXing.RGBLuminanceSource(imgD.data,scanCanvas.width,scanCanvas.height);
-      const bb=new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(lum));
-      const r=new ZXing.MultiFormatReader().decode(bb);
-      if(r){fermaScanner();cercaProdotto(r.getText());return;}
-    }catch(e){}
-  }
-  scanRaf=requestAnimationFrame(()=>loopZXing(video));
+  if(video.readyState<2){scanTimer=setTimeout(()=>loopZXing(video),200);return;}
+  scanCanvas.width=video.videoWidth;
+  scanCanvas.height=video.videoHeight;
+  scanCtx.drawImage(video,0,0);
+  try{
+    const imgD=scanCtx.getImageData(0,0,scanCanvas.width,scanCanvas.height);
+    const lum=new ZXing.RGBLuminanceSource(imgD.data,scanCanvas.width,scanCanvas.height);
+    const bb=new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(lum));
+    const hints=new Map();
+    hints.set(ZXing.DecodeHintType.TRY_HARDER,true);
+    const r=new ZXing.MultiFormatReader();
+    r.setHints(hints);
+    const result=r.decode(bb);
+    if(result){flashGreen();setTimeout(()=>{fermaScanner();cercaProdotto(result.getText());},200);return;}
+  }catch(e){}
+  scanTimer=setTimeout(()=>loopZXing(video),200);
+}
+
+function flashGreen(){
+  const f=document.querySelector('.scan-frame');
+  if(f){f.style.borderColor='#22c55e';f.style.boxShadow='0 0 0 9999px rgba(0,0,0,0.3)';}
 }
 
 function fermaScanner(){
   scanOn=false;
-  if(scanRaf){cancelAnimationFrame(scanRaf);scanRaf=null;}
+  if(scanTimer){clearTimeout(scanTimer);scanTimer=null;}
   if(scanStream){scanStream.getTracks().forEach(t=>t.stop());scanStream=null;}
   const v=document.getElementById('scan-video');v.srcObject=null;
   document.getElementById('scanner-wrap').classList.remove('show');
+  const d=document.getElementById('scan-diag');if(d)d.remove();
 }
 
 async function cercaProdotto(bc){
