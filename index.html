@@ -134,7 +134,7 @@ textarea{resize:vertical;min-height:70px}
   <div class="page" id="page-piano">
     <div class="card">
       <div id="piano-list"></div>
-      <button class="btn-add" onclick="openModal('modal-add-variante')">+ Aggiungi variante pasto</button>
+      <button class="btn-add" onclick="resetVarianteModal();openModal('modal-add-variante')">+ Aggiungi variante pasto</button>
     </div>
   </div>
 
@@ -252,7 +252,7 @@ textarea{resize:vertical;min-height:70px}
   <div class="modal">
     <div class="modal-title">
       <span>Nuova variante</span>
-      <button class="modal-close" onclick="closeModal('modal-add-variante')">✕</button>
+      <button class="modal-close" onclick="resetVarianteModal()">✕</button>
     </div>
     <div class="form-group">
       <label class="form-label">Pasto</label>
@@ -360,9 +360,28 @@ function renderOggi(){
 }
 
 // ══════════════════════════════════════
-// CONSUMO — qty editabili
+// CONSUMO — fuzzy match + dropdown dispensa
 // ══════════════════════════════════════
 let pendingId=null;
+
+// Trova corrispondenze fuzzy: parole in comune tra nome piano e nome dispensa
+function trovaSimilari(nomeIngr){
+  const needle=nomeIngr.toLowerCase();
+  const words=needle.split(/\s+/).filter(w=>w.length>=3);
+  const results=[];
+  S.dispensa.forEach(d=>{
+    const hay=d.nome.toLowerCase();
+    // Corrispondenza esatta
+    if(hay===needle){results.push({d,score:100});return;}
+    // Il nome dispensa contiene il nome ingrediente o viceversa
+    if(hay.includes(needle)||needle.includes(hay)){results.push({d,score:80});return;}
+    // Parole in comune
+    const commonWords=words.filter(w=>hay.includes(w));
+    if(commonWords.length>0) results.push({d,score:commonWords.length*20});
+  });
+  results.sort((a,b)=>b.score-a.score);
+  return results;
+}
 
 function iniziaConsumo(vid){
   const v=S.piano.find(p=>p.id===vid);if(!v)return;
@@ -373,37 +392,93 @@ function iniziaConsumo(vid){
     rows.innerHTML='<p style="color:var(--text3);font-size:13px;padding:8px 0">Nessun ingrediente — verrà solo registrato nel log.</p>';
   } else {
     rows.innerHTML=v.ingredienti.map((i,idx)=>{
-      const d=S.dispensa.find(x=>x.nome.toLowerCase()===i.nome.toLowerCase());
-      const disp=d?d.qty:null;
-      const warn=disp!==null&&disp<i.qty;
-      const dispTxt=disp!==null
-        ?`<span style="color:${warn?'var(--amber)':'var(--text3)'}">disp: ${disp}${i.unit}</span>`
-        :`<span style="color:var(--red)">non trovato</span>`;
-      return `<div class="consuma-row">
-        <div class="consuma-nome">${i.nome}</div>
-        <input class="consuma-qty-inp" type="number" min="0" step="0.1" value="${i.qty}" id="cq${idx}">
-        <div class="consuma-unit">${i.unit}</div>
-        <div class="consuma-disp">${dispTxt}</div>
+      const similari=trovaSimilari(i.nome);
+      const bestMatch=similari[0]||null;
+
+      // Dropdown opzioni dispensa
+      let optionsHtml='<option value="__none__">— non presente in dispensa —</option>';
+      if(similari.length){
+        optionsHtml+=similari.map(({d,score})=>{
+          const label=score===100?d.nome:`${d.nome} (${d.qty}${d.unit})`;
+          return `<option value="${d.id}" ${score>=80?'':''}>${label}</option>`;
+        }).join('');
+      }
+
+      // Colore stato
+      let statusHtml='';
+      if(!similari.length){
+        statusHtml=`<div style="font-size:11px;color:var(--red);margin-top:4px">⚠ Non trovato in dispensa</div>`;
+      } else if(bestMatch.score===100){
+        statusHtml=`<div style="font-size:11px;color:var(--green);margin-top:4px">Corrispondenza esatta</div>`;
+      } else {
+        statusHtml=`<div style="font-size:11px;color:var(--amber);margin-top:4px">Corrispondenza simile — verifica</div>`;
+      }
+
+      const selectedId=bestMatch?bestMatch.d.id:'__none__';
+      const dispQty=bestMatch?bestMatch.d.qty:null;
+      const warn=dispQty!==null&&dispQty<i.qty;
+      const dispTxt=dispQty!==null
+        ?`<span style="font-size:11px;color:${warn?'var(--amber)':'var(--text3)'}">disp: ${dispQty}${bestMatch.d.unit}</span>`
+        :'';
+
+      return `<div style="padding:10px 0;border-bottom:1px solid var(--border)">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <div style="flex:1;font-size:14px;font-weight:500">${i.nome}</div>
+          <input class="consuma-qty-inp" type="number" min="0" step="0.1" value="${i.qty}" id="cq${idx}" style="width:70px;padding:6px 8px;text-align:center;background:var(--surface3);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:14px">
+          <div style="font-size:12px;color:var(--text3);min-width:24px">${i.unit}</div>
+        </div>
+        <select id="cs${idx}" style="width:100%;margin-bottom:2px" onchange="aggiornaDispInfo(${idx})">
+          ${optionsHtml}
+        </select>
+        <div id="cd${idx}">${dispTxt}${statusHtml}</div>
       </div>`;
     }).join('');
+
+    // Preseleziona best match nei dropdown
+    v.ingredienti.forEach((i,idx)=>{
+      const similari=trovaSimilari(i.nome);
+      const sel=document.getElementById('cs'+idx);
+      if(sel&&similari.length) sel.value=similari[0].d.id;
+    });
   }
   openModal('modal-consuma');
+}
+
+function aggiornaDispInfo(idx){
+  const sel=document.getElementById('cs'+idx);
+  const info=document.getElementById('cd'+idx);
+  if(!sel||!info)return;
+  if(sel.value==='__none__'){
+    info.innerHTML=`<div style="font-size:11px;color:var(--red);margin-top:2px">⚠ Non verrà sottratto dalla dispensa</div>`;
+    return;
+  }
+  const d=S.dispensa.find(x=>x.id===sel.value);
+  if(!d){info.innerHTML='';return;}
+  const qInp=document.getElementById('cq'+(idx));
+  const q=qInp?parseFloat(qInp.value)||0:0;
+  const warn=d.qty<q;
+  info.innerHTML=`<span style="font-size:11px;color:${warn?'var(--amber)':'var(--green)'}">Dispensa: ${d.qty} ${d.unit}${warn?' ⚠ insufficiente':''}</span>`;
 }
 
 function confermaConsumo(){
   const v=S.piano.find(p=>p.id===pendingId);if(!v)return;
   const warn=[];
   const used=v.ingredienti.map((i,idx)=>{
-    const el=document.getElementById('cq'+idx);
-    const q=el?parseFloat(el.value)||0:i.qty;
-    const d=S.dispensa.find(x=>x.nome.toLowerCase()===i.nome.toLowerCase());
-    if(d)d.qty=Math.max(0,parseFloat((d.qty-q).toFixed(2)));
-    else warn.push(i.nome);
+    const qEl=document.getElementById('cq'+idx);
+    const sEl=document.getElementById('cs'+idx);
+    const q=qEl?parseFloat(qEl.value)||0:i.qty;
+    const dispId=sEl?sEl.value:null;
+    if(dispId&&dispId!=='__none__'){
+      const d=S.dispensa.find(x=>x.id===dispId);
+      if(d) d.qty=Math.max(0,parseFloat((d.qty-q).toFixed(2)));
+    } else {
+      warn.push(i.nome);
+    }
     return{nome:i.nome,qty:q,unit:i.unit};
   });
   S.log.unshift({id:uid(),ts:new Date().toISOString(),pasto:v.pasto,variante:v.nome,ingredienti:used});
   save();closeModal('modal-consuma');
-  warn.length?toast('Non in dispensa: '+warn.join(', '),'warning'):toast(v.nome+' registrato!','success');
+  warn.length?toast('Non sottratti: '+warn.join(', '),'warning'):toast(v.nome+' registrato!','success');
   renderOggi();
 }
 
@@ -630,7 +705,11 @@ function renderPiano(){
     vv.forEach(v=>{
       const is=v.ingredienti.map(i=>`${i.nome} ${i.qty}${i.unit}`).join(' · ')||'Nessun ingrediente';
       const el=document.createElement('div');el.className='piano-variante-item';
-      el.innerHTML=`<div style="flex:1"><div style="font-size:14px;font-weight:600;margin-bottom:3px">${v.nome}</div><div style="font-size:12px;color:var(--text2)">${is}</div>${v.note?`<div style="font-size:11px;color:var(--text3);margin-top:3px">${v.note}</div>`:''}</div><button class="btn-danger" onclick="delVariante('${v.id}')">✕</button>`;
+      el.innerHTML=`<div style="flex:1"><div style="font-size:14px;font-weight:600;margin-bottom:3px">${v.nome}</div><div style="font-size:12px;color:var(--text2)">${is}</div>${v.note?`<div style="font-size:11px;color:var(--text3);margin-top:3px">${v.note}</div>`:''}</div>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <button class="icon-btn" title="Modifica" onclick="editVariante('${v.id}')">✎</button>
+        <button class="btn-danger" onclick="delVariante('${v.id}')">✕</button>
+      </div>`;
       sec.appendChild(el);
     });
     c.appendChild(sec);
@@ -638,7 +717,8 @@ function renderPiano(){
   if(!c.children.length)c.innerHTML=`<div class="empty-state"><div class="empty-icon">📝</div>Nessun piano.<br>Aggiungi le tue varianti!</div>`;
 }
 
-let tmpI=[];
+let tmpI=[], editingVarianteId=null;
+
 function addIngrChip(){
   const n=document.getElementById('av-in').value.trim();
   const q=parseFloat(document.getElementById('av-iq').value);
@@ -653,14 +733,55 @@ function renderChips(){
     `<div class="chip">${i.nome} ${i.qty}${i.unit} <button class="chip-remove" onclick="tmpI.splice(${x},1);renderChips()">✕</button></div>`
   ).join('');
 }
+
+function editVariante(id){
+  const v=S.piano.find(x=>x.id===id);if(!v)return;
+  editingVarianteId=id;
+  // Precompila il modal
+  document.getElementById('av-pasto').value=v.pasto;
+  document.getElementById('av-nome').value=v.nome;
+  document.getElementById('av-note').value=v.note||'';
+  tmpI=[...v.ingredienti.map(i=>({...i}))];
+  renderChips();
+  // Cambia titolo e testo bottone
+  document.querySelector('#modal-add-variante .modal-title span').textContent='Modifica variante';
+  document.querySelector('#modal-add-variante .btn-primary').textContent='Salva modifiche';
+  openModal('modal-add-variante');
+}
+
 function salvaVariante(){
   const nome=document.getElementById('av-nome').value.trim();
   if(!nome){toast('Inserisci un nome','error');return;}
-  S.piano.push({id:uid(),pasto:document.getElementById('av-pasto').value,nome,ingredienti:[...tmpI],note:document.getElementById('av-note').value.trim()});
-  save();tmpI=[];renderChips();
-  document.getElementById('av-nome').value='';document.getElementById('av-note').value='';
-  closeModal('modal-add-variante');toast(nome+' salvata!','success');renderPiano();
+  if(editingVarianteId){
+    // Modalità modifica
+    const v=S.piano.find(x=>x.id===editingVarianteId);
+    if(v){
+      v.pasto=document.getElementById('av-pasto').value;
+      v.nome=nome;
+      v.ingredienti=[...tmpI];
+      v.note=document.getElementById('av-note').value.trim();
+    }
+    editingVarianteId=null;
+  } else {
+    // Modalità nuova
+    S.piano.push({id:uid(),pasto:document.getElementById('av-pasto').value,nome,ingredienti:[...tmpI],note:document.getElementById('av-note').value.trim()});
+  }
+  save();
+  const msg=nome+' salvata!';
+  resetVarianteModal();
+  toast(msg,'success');renderPiano();
 }
+
+function resetVarianteModal(){
+  editingVarianteId=null;
+  tmpI=[];renderChips();
+  document.getElementById('av-nome').value='';
+  document.getElementById('av-note').value='';
+  document.querySelector('#modal-add-variante .modal-title span').textContent='Nuova variante';
+  document.querySelector('#modal-add-variante .btn-primary').textContent='Salva variante';
+  closeModal('modal-add-variante');
+}
+
 function delVariante(id){
   if(!confirm('Eliminare questa variante?'))return;
   S.piano=S.piano.filter(x=>x.id!==id);save();renderPiano();toast('Variante eliminata','warning');
